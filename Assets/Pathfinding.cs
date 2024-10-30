@@ -1,7 +1,5 @@
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using UnityEngine;
-
 
 public class Pathfinding : MonoBehaviour
 {
@@ -10,13 +8,13 @@ public class Pathfinding : MonoBehaviour
     private Vector2Int goal = new Vector2Int(4, 4);
     private Vector2Int next;
     private Vector2Int current;
-    private int gridSize = 10;
-    public int probablity;
-    private int step = 0;
 
-    public int width = 10; // Grid width
-    public int height = 10;
-    private int[,] grid;
+    [Header("Obstacle move")]
+    public Vector2Int obstaclemove;
+
+    [Header("Probilaty")]
+    public float Probability;
+
 
     private Vector2Int[] directions = new Vector2Int[]
     {
@@ -26,30 +24,27 @@ public class Pathfinding : MonoBehaviour
         new Vector2Int(0, -1)
     };
 
-   /* private int[,] grid = new int[,]
+    private int[,] grid = new int[,]
     {
         { 0, 1, 0, 0, 0 },
         { 0, 1, 0, 1, 0 },
         { 0, 0, 0, 1, 0 },
         { 0, 1, 1, 1, 0 },
         { 0, 0, 0, 0, 0 }
-    };*/
-    private int[,] newGrid = new int[,]
-        {
-        { 0, 1, 0, 0, 0 },
-        { 0, 1, 0, 1, 0 },
-        { 0, 0, 0, 1, 0 },
-        { 0, 1, 1, 1, 0 },
-        { 0, 0, 0, 0, 0 }
-        };
+    };
 
     private void Start()
     {
-      //  FindPath(start, goal);
-        GenerateRandomGrid(gridSize, gridSize);
+        FindPath(start, goal);
+        GenerateRandomGrid(7, 7, Probability);
     }
 
-    /*private void OnDrawGizmos()
+    private void OnValidate()
+    {
+        AddObstacle(obstaclemove);
+        
+    }
+    private void OnDrawGizmos()
     {
         float cellSize = 1f;
 
@@ -78,7 +73,7 @@ public class Pathfinding : MonoBehaviour
 
         Gizmos.color = Color.red;
         Gizmos.DrawCube(new Vector3(goal.x * cellSize, 0, goal.y * cellSize), new Vector3(cellSize, 0.1f, cellSize));
-    }*/
+    }
 
     private bool IsInBounds(Vector2Int point)
     {
@@ -131,48 +126,39 @@ public class Pathfinding : MonoBehaviour
         path.Reverse();
     }
 
-    private void OnDrawGizmos()
-    {
-        float cellSize = 10f;
-        // Draw the grid using Gizmos
-        if (grid == null) return;
-
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                Vector3 cellPosition = new Vector3(x * gridSize, 0, y * gridSize);
-                Gizmos.color = grid[y, x] == 1 ? Color.black : Color.white;
-                Gizmos.DrawCube(cellPosition, new Vector3(gridSize, 0.1f, gridSize));
-            }
-        }
-        Gizmos.color = Color.green;
-        Gizmos.DrawCube(new Vector3(start.x * cellSize, 0, start.y * cellSize), new Vector3(cellSize, 0.1f, cellSize));
-        Gizmos.color = Color.red;
-        Gizmos.DrawCube(new Vector3(goal.x * cellSize, 0, goal.y * cellSize), new Vector3(cellSize, 0.1f, cellSize));
-    }
-    private void GenerateRandomGrid(int width, int height)
+    public void GenerateRandomGrid(int width, int height, float obstacleProbability)
     {
         grid = new int[height, width];
 
+
+        // Loop through each cell in the grid
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                grid[y, x] = Random.Range(0, 2); // Randomly assigns 0 or 1
+                float randomValue = Random.Range(0f, 100f);
+                grid[y, x] = randomValue < obstacleProbability ? 1 : 0;
             }
         }
+        // Optionally, clear the path and recalculate after generating the grid
+        path.Clear();
+        FindPath(start, goal); // Recalculate path with new grid
     }
 
-
-        
-
-    private void AddObstacle(Vector2Int position)
+    public void AddObstacle(Vector2Int position)
     {
+        if (IsInBounds(position) && grid[position.y, position.x] == 0)
+        {
+            // Place the obstacle in the grid
+            grid[position.y, position.x] = 1; // Mark the grid cell as an obstacle
 
-
-        
-
-
+            // Clear the previous path and recalculate
+            path.Clear();
+            FindPath(start, goal);
+        }
+        else
+        {
+            Debug.Log("Invalid position for an obstacle or already occupied.");
+        }
     }
 }
