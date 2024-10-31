@@ -9,11 +9,20 @@ public class Pathfinding : MonoBehaviour
     private Vector2Int next;
     private Vector2Int current;
 
-    [Header("Obstacle move")]
-    public Vector2Int obstaclemove;
+    [Header("Obstacle Add")]
+    // [SerializeField]
+    //public List<Vector2Int> ObstacleAdd = new List<Vector2Int>();
+    public Vector2Int ObstacleAdd;
 
     [Header("Probilaty")]
+    [Range(0f, 100f)]
     public float Probability;
+
+    [Header("Grid sizes")]
+    [Range(0,20)]
+    public int Xsize;
+    [Range(0,20)]
+    public int Ysize;
 
 
     private Vector2Int[] directions = new Vector2Int[]
@@ -24,29 +33,39 @@ public class Pathfinding : MonoBehaviour
         new Vector2Int(0, -1)
     };
 
-    private int[,] grid = new int[,]
-    {
-        { 0, 1, 0, 0, 0 },
-        { 0, 1, 0, 1, 0 },
-        { 0, 0, 0, 1, 0 },
-        { 0, 1, 1, 1, 0 },
-        { 0, 0, 0, 0, 0 }
-    };
+    private int[,] grid = new int[,] { };
+    /* private int[,] grid = new int[,]
+     {
+
+         { 0, 1, 0, 0, 0 },
+         { 0, 1, 0, 1, 0 },
+         { 0, 0, 0, 1, 0 },
+         { 0, 1, 1, 1, 0 },
+         { 0, 0, 0, 0, 0 } 
+     };*/
 
     private void Start()
     {
+        GenerateRandomGrid(Xsize, Ysize, Probability);
         FindPath(start, goal);
-        
+       
     }
 
     private void OnValidate()
     {
-        AddObstacle(obstaclemove);
-        GenerateRandomGrid(7, 7, Probability);
-
+        
+        AddObstacle(ObstacleAdd);
+        
     }
     private void OnDrawGizmos()
     {
+        // Ensure the grid is initialized
+        if (grid == null)
+        {
+            // Optionally, initialize it with default values if desired
+            GenerateRandomGrid(Xsize, Ysize, Probability);
+            return; // Exit early if grid is not initialized
+        }
         float cellSize = 1f;
 
         // Draw grid cells
@@ -74,6 +93,8 @@ public class Pathfinding : MonoBehaviour
 
         Gizmos.color = Color.red;
         Gizmos.DrawCube(new Vector3(goal.x * cellSize, 0, goal.y * cellSize), new Vector3(cellSize, 0.1f, cellSize));
+
+        
     }
 
     private bool IsInBounds(Vector2Int point)
@@ -141,10 +162,14 @@ public class Pathfinding : MonoBehaviour
                 grid[y, x] = randomValue < obstacleProbability ? 1 : 0;
             }
         }
+        
         // Optionally, clear the path and recalculate after generating the grid
+       
         path.Clear();
         FindPath(start, goal); // Recalculate path with new grid
+        
     }
+
 
     public void AddObstacle(Vector2Int position)
     {
@@ -152,14 +177,15 @@ public class Pathfinding : MonoBehaviour
         {
             // Place the obstacle in the grid
             grid[position.y, position.x] = 1; // Mark the grid cell as an obstacle
-
-            // Clear the previous path and recalculate
             path.Clear();
             FindPath(start, goal);
+            
         }
         else
         {
             Debug.Log("Invalid position for an obstacle or already occupied.");
         }
+        // Clear the previous path and recalculate
+        
     }
 }
