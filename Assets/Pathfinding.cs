@@ -36,13 +36,14 @@ public class Pathfinding : MonoBehaviour
     private void Start()
     {
         FindPath(start, goal);
-        GenerateRandomGrid(7, 7, Probability);
+        
     }
 
     private void OnValidate()
     {
         AddObstacle(obstaclemove);
-        
+        GenerateRandomGrid(7, 7, Probability);
+
     }
     private void OnDrawGizmos()
     {
