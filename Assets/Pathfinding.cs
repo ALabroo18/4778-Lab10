@@ -1,20 +1,26 @@
 using System.Collections.Generic;
-using UnityEngine;
 
+using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+[ExecuteInEditMode]
 public class Pathfinding : MonoBehaviour
 {
     private List<Vector2Int> path = new List<Vector2Int>();
-    private Vector2Int start = new Vector2Int(0, 1);
-    private Vector2Int goal = new Vector2Int(4, 4);
+   
     private Vector2Int next;
     private Vector2Int current;
 
+    [Header("Start and Goal Positions")]
+    public Vector2Int start = new Vector2Int(0, 1);
+    public Vector2Int goal = new Vector2Int(4, 4);
+
     [Header("Obstacle Add")]
-    // [SerializeField]
-    //public List<Vector2Int> ObstacleAdd = new List<Vector2Int>();
     public Vector2Int ObstacleAdd;
 
-    [Header("Probilaty")]
+    [Header("Probability")]
     [Range(0f, 100f)]
     public float Probability;
 
@@ -24,6 +30,9 @@ public class Pathfinding : MonoBehaviour
     [Range(0,20)]
     public int Ysize;
 
+
+    private HashSet<Vector2Int> addedObstacles = new HashSet<Vector2Int>();
+    private float lastProbability = -1f; // a value so that prob can constantly change in scene
 
     private Vector2Int[] directions = new Vector2Int[]
     {
@@ -44,18 +53,19 @@ public class Pathfinding : MonoBehaviour
          { 0, 0, 0, 0, 0 } 
      };*/
 
-    private void Start()
-    {
-        GenerateRandomGrid(Xsize, Ysize, Probability);
-        FindPath(start, goal);
-       
-    }
+    
 
     private void OnValidate()
     {
-        
+        // Only regenerate grid if needed (e.g., Xsize, Ysize, Probability changed)
+        if (grid == null || grid.GetLength(0) != Ysize || grid.GetLength(1) != Xsize || Probability != lastProbability)
+        {
+            GenerateRandomGrid(Xsize, Ysize, Probability);
+        }
+   
+        FindPath(start, goal);
         AddObstacle(ObstacleAdd);
-        
+        lastProbability = Probability;
     }
     private void OnDrawGizmos()
     {
@@ -104,6 +114,7 @@ public class Pathfinding : MonoBehaviour
 
     private void FindPath(Vector2Int start, Vector2Int goal)
     {
+        path.Clear();
         Queue<Vector2Int> frontier = new Queue<Vector2Int>();
         frontier.Enqueue(start);
 
@@ -162,10 +173,14 @@ public class Pathfinding : MonoBehaviour
                 grid[y, x] = randomValue < obstacleProbability ? 1 : 0;
             }
         }
-        
-        // Optionally, clear the path and recalculate after generating the grid
-       
-        path.Clear();
+        // Restore previously added obstacles
+        foreach (var obstacle in addedObstacles)
+        {
+            if (IsInBounds(obstacle))
+            {
+                grid[obstacle.y, obstacle.x] = 1; // Ensure obstacle is set
+            }
+        }
         FindPath(start, goal); // Recalculate path with new grid
         
     }
@@ -177,15 +192,46 @@ public class Pathfinding : MonoBehaviour
         {
             // Place the obstacle in the grid
             grid[position.y, position.x] = 1; // Mark the grid cell as an obstacle
-            path.Clear();
+            addedObstacles.Add(position);
             FindPath(start, goal);
-            
         }
         else
         {
             Debug.Log("Invalid position for an obstacle or already occupied.");
-        }
-        // Clear the previous path and recalculate
-        
+        }  
     }
+    public void EraseAddedObstacles()
+    {
+        foreach (var obstacle in addedObstacles)
+        {
+            if (IsInBounds(obstacle))
+            {
+                grid[obstacle.y, obstacle.x] = 0; // Remove the obstacle from the grid
+            }
+        }
+        addedObstacles.Clear(); // Clear the set of added obstacles
+       
+        Debug.Log("Added obstacles erased.");
+    }
+
+
+
+#if UNITY_EDITOR
+    [CustomEditor(typeof(Pathfinding))]
+    public class PathfindingEditor : Editor
+    {
+        public override void OnInspectorGUI()
+        {
+            DrawDefaultInspector(); // Draw default inspector fields
+
+            Pathfinding pathfinding = (Pathfinding)target;
+
+            // Button to erase added obstacles
+            if (GUILayout.Button("Erase Added Obstacles"))
+            {
+                pathfinding.EraseAddedObstacles(); // Call the method when button is clicked
+            }
+        }
+    }
+#endif
 }
