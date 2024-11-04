@@ -1,5 +1,11 @@
 # 4778-Lab10
 
+## Video 
+
+
+
+https://github.com/user-attachments/assets/ab97aa55-5743-464c-8c76-eb3c6bf81d5a
+
 
 
 ## How does A* pathfinding calculate and prioritize paths?
@@ -14,6 +20,3 @@ We could change the directions array to dynamically update depending on how big 
 
 ## What would your approach be if you were to add weighted cells (e.g., "difficult terrain" areas)?
 If we were to add weighted cells, then for each cell we'd have to allocate space for each part of the terrain that would get added. For example, if the map was a grassy area, with hills that players can go on, then the number of cells would increase, and the size of each cell would drastically change.
-
- https://github.com/ALabroo18/4778-Lab10/issues/1#issue-2631741993
-
