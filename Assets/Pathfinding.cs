@@ -1,6 +1,10 @@
 using System.Collections.Generic;
 
 using UnityEngine;
+using UnityEngine.UIElements;
+using System.Linq;
+
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -13,12 +17,23 @@ public class Pathfinding : MonoBehaviour
     private Vector2Int next;
     private Vector2Int current;
 
-    [Header("Start and Goal Positions")]
-    public Vector2Int start = new Vector2Int(0, 1);
-    public Vector2Int goal = new Vector2Int(4, 4);
+    [Header("Start Positions")]
+    [Range(0, 20)]
+    public int startX = 0;
+    [Range(0, 20)]
+    public int startY = 1;
+    [Header("Goal Positions")]
+    [Range(0, 20)]
+    public int goalX = 4;
+    [Range(0, 20)]
+    public int goalY = 4;
 
     [Header("Obstacle Add")]
-    public Vector2Int ObstacleAdd;
+
+    [SerializeField]
+    private List<Obstacle> addedObstacles = new List<Obstacle>();
+    private List<Vector2Int> previousObstacles = new List<Vector2Int>();
+
 
     [Header("Probability")]
     [Range(0f, 100f)]
@@ -29,11 +44,6 @@ public class Pathfinding : MonoBehaviour
     public int Xsize;
     [Range(0,20)]
     public int Ysize;
-
-
-    private HashSet<Vector2Int> addedObstacles = new HashSet<Vector2Int>();
-    private float lastProbability = -1f; // a value so that prob can constantly change in scene
-
     private Vector2Int[] directions = new Vector2Int[]
     {
         new Vector2Int(1, 0),
@@ -42,7 +52,18 @@ public class Pathfinding : MonoBehaviour
         new Vector2Int(0, -1)
     };
 
+
     private int[,] grid = new int[,] { };
+    private float lastProbability = -1f;
+    [System.Serializable]
+    private class Obstacle
+    {
+        [Range(0, 20)]
+        public int x;
+        [Range(0, 20)]
+        public int y;
+    }
+
     /* private int[,] grid = new int[,]
      {
 
@@ -53,19 +74,18 @@ public class Pathfinding : MonoBehaviour
          { 0, 0, 0, 0, 0 } 
      };*/
 
-    
 
     private void OnValidate()
     {
-        // Only regenerate grid if needed (e.g., Xsize, Ysize, Probability changed)
-        if (grid == null || grid.GetLength(0) != Ysize || grid.GetLength(1) != Xsize || Probability != lastProbability)
+        // Only generate a grid if size or probability has changed
+        if (grid == null || grid.GetLength(0) != Ysize || grid.GetLength(1) != Xsize || Probability != lastProbability )
         {
             GenerateRandomGrid(Xsize, Ysize, Probability);
+            lastProbability = Probability;
+    
         }
-   
-        FindPath(start, goal);
-        AddObstacle(ObstacleAdd);
-        lastProbability = Probability;
+        UpdateObstacles();
+        FindPath(new Vector2Int(startX, startY), new Vector2Int(goalX, goalY));
     }
     private void OnDrawGizmos()
     {
@@ -74,7 +94,10 @@ public class Pathfinding : MonoBehaviour
         {
             // Optionally, initialize it with default values if desired
             GenerateRandomGrid(Xsize, Ysize, Probability);
-            return; // Exit early if grid is not initialized
+            foreach (var obstacle in addedObstacles)
+            {
+                ApplyObstacle(new Vector2Int(obstacle.x, obstacle.y));
+            }
         }
         float cellSize = 1f;
 
@@ -84,7 +107,11 @@ public class Pathfinding : MonoBehaviour
             for (int x = 0; x < grid.GetLength(1); x++)
             {
                 Vector3 cellPosition = new Vector3(x * cellSize, 0, y * cellSize);
-                Gizmos.color = grid[y, x] == 1 ? Color.black : Color.white;
+
+                Gizmos.color =  grid[y, x] == 0 ? Color.white :
+                                grid[y, x] == 1 ? Color.black :
+                                grid[y, x] == 2 ? Color.yellow :
+                                Color.cyan;
                 Gizmos.DrawCube(cellPosition, new Vector3(cellSize, 0.1f, cellSize));
             }
         }
@@ -99,12 +126,10 @@ public class Pathfinding : MonoBehaviour
 
         // Draw start and goal
         Gizmos.color = Color.green;
-        Gizmos.DrawCube(new Vector3(start.x * cellSize, 0, start.y * cellSize), new Vector3(cellSize, 0.1f, cellSize));
+        Gizmos.DrawCube(new Vector3(startX * cellSize, 0, startY * cellSize), new Vector3(cellSize, 0.1f, cellSize));
 
         Gizmos.color = Color.red;
-        Gizmos.DrawCube(new Vector3(goal.x * cellSize, 0, goal.y * cellSize), new Vector3(cellSize, 0.1f, cellSize));
-
-        
+        Gizmos.DrawCube(new Vector3(goalX * cellSize, 0, goalY * cellSize), new Vector3(cellSize, 0.1f, cellSize));
     }
 
     private bool IsInBounds(Vector2Int point)
@@ -161,60 +186,103 @@ public class Pathfinding : MonoBehaviour
 
     public void GenerateRandomGrid(int width, int height, float obstacleProbability)
     {
-        grid = new int[height, width];
-
-
-        // Loop through each cell in the grid
+        
+            grid = new int[height, width];
+            Xsize = width;
+            Ysize = height;
+        
+        
         for (int y = 0; y < height; y++)
         {
             for (int x = 0; x < width; x++)
             {
-                float randomValue = Random.Range(0f, 100f);
-                grid[y, x] = randomValue < obstacleProbability ? 1 : 0;
+                
+                
+                    float randomValue = Random.Range(0f, 100f);
+                    grid[y, x] = randomValue < obstacleProbability ? 1 : 0;
             }
         }
-        // Restore previously added obstacles
-        foreach (var obstacle in addedObstacles)
+      
+    }
+    private void ApplyObstacle(Vector2Int position)
+    {
+        if (IsInBounds(position) && grid[position.y, position.x] == 0) // Only apply if the cell is empty
         {
-            if (IsInBounds(obstacle))
-            {
-                grid[obstacle.y, obstacle.x] = 1; // Ensure obstacle is set
-            }
+            grid[position.y, position.x] = 2; // Mark as a yellow obstacle
         }
-        FindPath(start, goal); // Recalculate path with new grid
-        
+    }
+    private void ClearObstacle(Vector2Int position)
+    {
+        if (IsInBounds(position) && grid[position.y, position.x] == 2) // Clear only if it’s a yellow obstacle
+        {
+            grid[position.y, position.x] = 0; // Clear the obstacle
+        }
     }
 
 
+    private void UpdateObstacles()
+    {
+        // Clear previous obstacles
+        foreach (var obstacle in previousObstacles)
+        {
+            ClearObstacle(obstacle);
+        }
+        previousObstacles.Clear();
+        // Apply current obstacles
+        foreach (var obstacle in addedObstacles)
+        {
+            Vector2Int newPosition = new Vector2Int(obstacle.x, obstacle.y);
+            ApplyObstacle(newPosition);
+            previousObstacles.Add(newPosition);
+        }
+       
+
+    }
+
+
+    public void ClearAddedObstacles()
+    {
+        addedObstacles.Clear();
+        GenerateRandomGrid(Xsize, Ysize, Probability);
+        Debug.Log("All obstacles cleared.");
+    }
+    // New method to handle adding an obstacle at a specific position
     public void AddObstacle(Vector2Int position)
     {
-        if (IsInBounds(position) && grid[position.y, position.x] == 0)
+        // Clear existing obstacle if present
+        if (addedObstacles.Any(o => o.x == position.x && o.y == position.y))
         {
-            // Place the obstacle in the grid
-            grid[position.y, position.x] = 1; // Mark the grid cell as an obstacle
-            addedObstacles.Add(position);
-            FindPath(start, goal);
+            ClearObstacle(position);
+            addedObstacles.RemoveAll(o => o.x == position.x && o.y == position.y);
+        }
+
+        if (IsInBounds(position) && !addedObstacles.Any(o => o.x == position.x && o.y == position.y))
+        {
+            addedObstacles.Add(new Obstacle { x = position.x, y = position.y });
+            ApplyObstacle(position);
+            FindPath(new Vector2Int(startX, startY), new Vector2Int(goalX, goalY));
         }
         else
         {
             Debug.Log("Invalid position for an obstacle or already occupied.");
-        }  
+        }
     }
-    public void EraseAddedObstacles()
+
+    // Call this method when the sliders are changed to update the obstacles
+    public void UpdateObstaclePositions()
     {
         foreach (var obstacle in addedObstacles)
         {
-            if (IsInBounds(obstacle))
-            {
-                grid[obstacle.y, obstacle.x] = 0; // Remove the obstacle from the grid
-            }
+            Vector2Int newPosition = new Vector2Int(obstacle.x, obstacle.y);
+            if (!IsInBounds(newPosition) || (previousObstacles.Contains(newPosition) && previousObstacles.Any(o => o.x == newPosition.x && o.y == newPosition.y)))
+                continue;
+
+            // Clear the old position
+            ClearObstacle(new Vector2Int(obstacle.x, obstacle.y));
+            // Apply obstacle to the new position
+            ApplyObstacle(newPosition);
         }
-        addedObstacles.Clear(); // Clear the set of added obstacles
-       
-        Debug.Log("Added obstacles erased.");
     }
-
-
 
 #if UNITY_EDITOR
     [CustomEditor(typeof(Pathfinding))]
@@ -229,8 +297,10 @@ public class Pathfinding : MonoBehaviour
             // Button to erase added obstacles
             if (GUILayout.Button("Erase Added Obstacles"))
             {
-                pathfinding.EraseAddedObstacles(); // Call the method when button is clicked
+                //  pathfinding.EraseAddedObstacles(); // Call the method when button is clicked
+                pathfinding.ClearAddedObstacles();
             }
+           
         }
     }
 #endif
