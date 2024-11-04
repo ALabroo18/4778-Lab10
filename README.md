@@ -15,4 +15,5 @@ We could change the directions array to dynamically update depending on how big 
 ## What would your approach be if you were to add weighted cells (e.g., "difficult terrain" areas)?
 If we were to add weighted cells, then for each cell we'd have to allocate space for each part of the terrain that would get added. For example, if the map was a grassy area, with hills that players can go on, then the number of cells would increase, and the size of each cell would drastically change.
 
- 
+ https://github.com/ALabroo18/4778-Lab10/issues/1#issue-2631741993
+
